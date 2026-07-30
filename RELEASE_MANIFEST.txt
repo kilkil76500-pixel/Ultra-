@@ -1,0 +1,140 @@
+Football Intelligence V20.10 (fusion 2) — portable release
+
+Version
+-------
+20.10-fusion-autoresultat-et-cote-modele
+
+Changelog résumé
+----------------
+V20.10 (fusion 2) — /autoresultat réécrit pour scraper la page Forebet des
+          matchs "FT" (une requête au lieu d'une par match, plus de repli
+          par mots-clés qui produisait des scores absurdes type "13-30").
+          Un bug de contamination entre matchs voisins trouvé en vérifiant
+          indépendamment (avant intégration) et corrigé — voir
+          CHANGELOG_V20.10-fusion-autoresultat.md pour le détail complet.
+V20.10 — Le signal "écart cote/modèle" comparait max(probs modèle) à
+          max(probs marché) sans vérifier que c'est la même issue des
+          deux côtés. Corrigé : comparaison par issue (celle que le
+          modèle favorise). Bug resté invisible jusqu'à V20.9 (cotes
+          toujours vides avant). Voir CHANGELOG_V20.10.md.
+V20.9 (fusion) — V20.6 à V20.9 portées sur ma branche : audit d'ablation
+          de l'indice de force (/auditforce), audit du canal H2H et
+          home_factor/away_factor enfin branchés (/audith2h), cotes
+          bookmaker enfin scrapées (value.py et le signal cote/modèle
+          sortent de la mort clinique), split warnings/notes des
+          anomalies. Voir CHANGELOG_V20.9-fusion.md pour le détail complet
+          des vérifications ; CHANGELOG_V20.6.md à V20.9.md pour le détail
+          d'origine de chaque avancée.
+V20.5 — Fusion d'une troisième V20.3 (engine/league_calibration.py +
+          /recalibrerligues) par-dessus la V20.4 (voir CHANGELOG_V20.5.md).
+V20.4 — Fusion de deux V20.3 développées indépendamment sur la même base
+          (voir CHANGELOG_V20.4.md pour le détail) :
+          - engine/coherence.py + seuils calibrés dans /historique
+          - snapshot_json persistant + /backtestxg câblé sur Telegram
+V20.3  — (branche "coherence", fusionnée ci-dessus) engine/coherence.py :
+          explique les écarts marginal/modal et le boost du nul dans le
+          message déjà affiché ; engine/history_query.py compare BTTS/O2.5
+          aux seuils réellement calibrés au lieu de 0.5 en dur.
+V20.2  — Identifiant de pronostic restauré après /predict (🆔 Pronostic n°X +
+          exemple /resultat prêt à copier). N'était plus affiché depuis le retrait
+          du bloc "Scénarios V18" (décision produit confirmée).
+V20.1  — Fusion branche portable (V19.15) + backtest xG réel (V19.16) :
+          - build_prediction_inputs() factorisée (réutilisée par xg_backtest)
+          - xg_multiplier_override dans predictor.predict()
+          - engine/xg_backtest.py : backtest complet de xg_global_multiplier
+V20    — Mémoire statistique & détection d'anomalies pré-match :
+          - engine/history_query.py : requête libre sur l'historique réglé (/historique)
+          - engine/anomaly.py : 3 signaux (historique similaire, écart cote/modèle,
+            dispersion Monte-Carlo), affichés automatiquement dans /predict
+V19.15 — Suite complète de tests, fuseau Europe/Paris, pagination du clavier de matchs,
+          start.sh portable, Dockerfile, Procfile
+20.2.1 — Correction barre de progression étape 3 : _parse_scan_label n'extrayait
+          pas le compteur X/Y des labels "Étape 3/3 — 12/24 · PSG – Lyon", la
+          barre restait bloquée à ~50 % pendant toute la phase d'enrichissement.
+          2 nouveaux tests paramétrés couvrent ce cas.
+
+Contenu de la release
+---------------------
+- bot.py                     : interface Telegram (20 commandes)
+- config.py                  : configuration et validation
+- start.sh                   : script de démarrage portable (Docker / Procfile / local)
+- Dockerfile                 : image Docker prête à déployer
+- Procfile                   : démarrage Heroku / Railway / Render
+- requirements.txt           : dépendances production verrouillées
+- requirements-dev.txt       : dépendances de test verrouillées
+- pytest.ini                 : configuration pytest
+- conftest.py                : fixtures de test
+- run_scan.py                : scan en ligne de commande (sans Telegram)
+- export_data.py             : export des données
+- engine/                    : moteur complet (predictor, scanner, montecarlo, xg,
+                               tactical, calibration, anomaly, coherence,
+                               history_query, xg_backtest, league_calibration,
+                               strength_ablation, h2h_audit, market_edge,
+                               team_memory, tracking, web_collector…)
+- engine/tests/              : suite de tests (37/37 rejoués à la main pour
+                               ces correctifs : coherence, league_calibration,
+                               anomaly, web_collector — voir CHANGELOG_V20.4.md
+                               à CHANGELOG_V20.10-fusion-autoresultat.md ; suite
+                               complète non rejouée avec pytest dans cet
+                               environnement, voir note ci-dessous)
+- cache/.gitkeep             : répertoire de persistance (à monter sur volume)
+- CHANGELOG_V*.md            : historique complet des versions
+- README.md                  : documentation d'installation et de déploiement
+- VERSIONS.md                : synthèse des versions moteur
+
+Configuration requise
+---------------------
+Variable d'environnement obligatoire :
+  TELEGRAM_BOT_TOKEN   : token créé avec @BotFather sur Telegram
+
+Déploiement local
+-----------------
+  pip install -r requirements.txt
+  python -m playwright install chromium
+  export TELEGRAM_BOT_TOKEN=<ton_token>
+  ./start.sh
+
+Déploiement avec fichier .env
+------------------------------
+  cp .env.example .env
+  # Renseigner TELEGRAM_BOT_TOKEN dans .env
+  ./start.sh          # charge .env automatiquement
+
+Déploiement Docker
+------------------
+  docker build -t football-intelligence .
+  docker run --env-file .env \
+    -v "$PWD/cache:/app/cache" \
+    football-intelligence
+
+  ⚠️  Monter cache/ sur un volume persistant pour conserver les pronostics,
+      résultats, calibrations, mémoire des équipes et exports.
+
+Déploiement Heroku / Railway / Render
+--------------------------------------
+  Le Procfile démarre ./start.sh.
+  Injecter TELEGRAM_BOT_TOKEN dans les variables d'environnement de la plateforme.
+
+Vérification de l'archive
+--------------------------
+  unzip -t football-intelligence-v20.10-fusion-portable.zip
+  cd football-intelligence-v20.10-fusion-portable/
+  pip install -r requirements-dev.txt
+  python -m playwright install chromium
+  pytest -q
+  # `pytest` non installable dans l'environnement où cette fusion V20.5 a
+  # été préparée (pas d'accès réseau) — non revérifié ici avec la suite
+  # complète. Voir CHANGELOG_V20.4.md et CHANGELOG_V20.5.md pour le détail
+  # exact des vérifications effectuées à la place (tests manuels + vraies
+  # données de
+  # production + 8/8 tests de test_coherence.py rejoués un par un).
+
+Fichiers NON inclus dans cette archive
+---------------------------------------
+  - .env              (secrets)
+  - TELEGRAM_BOT_TOKEN (jamais stocké dans le code)
+  - cache/*.db        (données de production)
+  - cache/*/          (snapshots du jour)
+  - cache/team_memory.json (mémoire de production)
+  - __pycache__/, *.pyc
+  - .coverage, .pytest_cache, .test-cache
